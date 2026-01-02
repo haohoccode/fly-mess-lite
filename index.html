@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Messenger Tuner</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --anim-speed: 3s; }
+        body {
+            margin: 0; height: 100vh; 
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        #container { position: relative; width: 100%; height: 100%; pointer-events: none; }
+        
+        .heartbeating { animation: heartBeat 1.3s infinite ease-in-out; }
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            15% { transform: scale(1.05); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.05); }
+            60% { transform: scale(1); }
+        }
+
+        #controls {
+            position: fixed; top: 20px; left: 20px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 20px; border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.9); width: 300px;
+            backdrop-filter: blur(20px);
+            pointer-events: auto;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        #controls.hidden { opacity: 0; transform: translateY(-20px); pointer-events: none; }
+        
+        #reopen-btn {
+            position: fixed; top: 20px; left: 20px; z-index: 900;
+            background: white; padding: 10px 15px; border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            cursor: pointer; border: 1px solid #eee;
+            font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px;
+            transition: 0.3s; opacity: 0; pointer-events: none;
+        }
+        #reopen-btn.visible { opacity: 1; pointer-events: auto; }
+        #reopen-btn:hover { transform: scale(1.05); }
+
+        #toggle-btn {
+            position: absolute; top: 15px; right: 15px; cursor: pointer; color: #999;
+            transition: 0.2s;
+        }
+        #toggle-btn:hover { color: #333; }
+
+        h3 { margin: 0 0 20px 0; color: #333; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        h3 i { color: #007AFF; } 
+
+        .control-group { margin-bottom: 15px; position: relative; }
+        .control-group label { 
+            display: block; font-size: 11px; color: #888; margin-bottom: 6px; 
+            text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+        }
+        
+        input[type=text], select {
+            width: 100%; padding: 12px 16px; 
+            border: 1px solid #e1e1e1; border-radius: 20px;
+            background: #f5f5f7; color: #333;
+            font-size: 14px; box-sizing: border-box; outline: none;
+            transition: all 0.2s;
+        }
+        input[type=text]:focus { 
+            background: #fff; border-color: #007AFF; box-shadow: 0 0 0 3px rgba(0,122,255,0.1); 
+        }
+
+        input[type=color] {
+            width: 100%; height: 40px; border: none; padding: 2px;
+            background: transparent; cursor: pointer;
+        }
+
+        input[type=range] { width: 100%; accent-color: #007AFF; cursor: pointer; }
+
+        #btn-apply {
+            width: 100%; padding: 12px; border: none; border-radius: 20px;
+            background: linear-gradient(135deg, #007AFF, #00C6FF);
+            color: #fff; font-weight: 600; cursor: pointer; font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+            transition: transform 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        #btn-apply:hover { transform: translateY(-2px); }
+        #btn-apply:active { transform: scale(0.98); }
+
+        .bubble {
+            position: absolute; 
+            padding: 10px 18px; 
+            border-radius: 20px;
+            color: white; 
+            font-weight: 500; font-size: 13px; 
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            
+            left: var(--out-x); top: var(--out-y);
+            transform: translate(-50%, -50%) scale(0); 
+            opacity: 0; z-index: 10;
+            
+            transition: 
+                top var(--anim-speed) cubic-bezier(0.25, 1, 0.5, 1),
+                left var(--anim-speed) cubic-bezier(0.25, 1, 0.5, 1),
+                opacity 1s ease,
+                transform 0.3s ease-out; 
+                
+            user-select: none; cursor: pointer; pointer-events: auto;
+            white-space: nowrap;
+            max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+        }
+        
+        .bubble.is-image {
+            width: 50px; height: 50px; padding: 0;
+            background-size: cover; background-position: center;
+            border: 2px solid #fff;
+        }
+
+        .bubble.stage-chaos {
+            opacity: 1; left: var(--chaos-x); top: var(--chaos-y);
+            transform: translate(-50%, -50%) scale(1) rotate(var(--rot));
+        }
+        
+        .bubble.stage-shape {
+            opacity: 1; left: var(--shape-x) !important; top: var(--shape-y) !important;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .particle {
+            position: absolute; width: 6px; height: 6px; border-radius: 50%;
+            pointer-events: none; animation: pop 0.6s ease-out forwards;
+        }
+        @keyframes pop { to { transform: translate(var(--mx), var(--my)); opacity: 0; } }
+
+        #credit {
+            position: fixed; bottom: 20px; right: 20px;
+            font-size: 14px; font-weight: bold; color: #555;
+            opacity: 0.7; z-index: 500; font-family: sans-serif;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="reopen-btn" onclick="toggleInterface()">
+        <i class="fa-solid fa-sliders"></i> Cài đặt
+    </div>
+
+    <div id="controls">
+        <i id="toggle-btn" class="fa-solid fa-chevron-down" onclick="toggleInterface()"></i>
+        <h3><i class="fa-brands fa-facebook-messenger"></i> Message Tuner</h3>
+        
+        <div class="control-group">
+            <label>Nội dung tin nhắn:</label>
+            <input type="text" id="inp-text" value="Anh nhớ em, ❤️, Love You, Cute quá, 3000, 🥰, Miss U" placeholder="Nhập tin nhắn...">
+        </div>
+
+        <div class="control-group">
+            <label>Link Ảnh (Tuỳ chọn):</label>
+            <input type="text" id="inp-img" placeholder="https://link-anh-cua-ban.jpg">
+        </div>
+
+        <div class="control-group">
+            <label>Màu chủ đạo:</label>
+            <input type="color" id="inp-color" value="#007AFF">
+        </div>
+
+        <div class="control-group">
+            <label>Hình dạng:</label>
+            <select id="inp-shape">
+                <option value="heart">Trái tim (Heart)</option>
+                <option value="circle">Vòng tròn (Circle)</option>
+                <option value="spiral">Xoắn ốc (Spiral)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Số lượng tin: <span id="val-count" style="float:right; color:#007AFF">80</span></label>
+            <input type="range" id="inp-count" min="30" max="150" step="5" value="80">
+        </div>
+
+        <button id="btn-apply"><i class="fa-solid fa-paper-plane"></i> GỬI TIN NHẮN</button>
+        <p style="text-align:center; font-size:10px; color:#aaa; margin-top:10px">Click vào tin nhắn để xem hiệu ứng (hoặc nhấn Enter)</p>
+    </div>
+
+    <div id="credit">TikTok: binnanee</div>
+
+    <div id="container"></div>
+
+    <script>
+        const container = document.getElementById('container');
+        const inpCount = document.getElementById('inp-count');
+        const inpText = document.getElementById('inp-text');
+        const inpImg = document.getElementById('inp-img');
+        const inpShape = document.getElementById('inp-shape');
+        const inpColor = document.getElementById('inp-color');
+        const btnApply = document.getElementById('btn-apply');
+        const controls = document.getElementById('controls');
+        const reopenBtn = document.getElementById('reopen-btn');
+        
+        inpCount.addEventListener('input', () => document.getElementById('val-count').innerText = inpCount.value);
+
+        function toggleInterface() {
+            controls.classList.toggle('hidden');
+            reopenBtn.classList.toggle('visible');
+        }
+
+        let activeTimeouts = [];
+
+        function createExplosion(x, y, color) {
+            for(let i=0; i<8; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                p.style.background = color;
+                p.style.setProperty('--mx', (Math.random()-0.5)*120 + 'px');
+                p.style.setProperty('--my', (Math.random()-0.5)*120 + 'px');
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 600);
+            }
+        }
+
+        function getHeartPos(t, scale = 15) { 
+            const cx = window.innerWidth / 2; const cy = window.innerHeight / 2 - 40; 
+            const x = 16 * Math.pow(Math.sin(t), 3); 
+            const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)); 
+            return { x: cx + (x * scale), y: cy + (y * scale) }; 
+        }
+        function getCirclePos(t) {
+            const r = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+            return { x: window.innerWidth/2 + Math.cos(t)*r, y: window.innerHeight/2 + Math.sin(t)*r };
+        }
+        function getSpiralPos(t, i, total) {
+            const angle = i * 0.2;
+            const r = 20 + (i * (Math.min(window.innerWidth,window.innerHeight)*0.4)/total);
+            return { x: window.innerWidth/2 + Math.cos(angle)*r, y: window.innerHeight/2 + Math.sin(angle)*r };
+        }
+
+        function runAnimation() {
+            activeTimeouts.forEach(t => clearTimeout(t));
+            activeTimeouts = [];
+            container.innerHTML = '';
+            container.classList.remove('heartbeating');
+
+            const count = parseInt(inpCount.value);
+            const shapeType = inpShape.value;
+            const imgUrl = inpImg.value.trim();
+            const mainColor = inpColor.value;
+            
+            let textList = inpText.value.split(',').filter(t => t.trim() !== "");
+            if (textList.length === 0) textList = ["❤️"];
+
+            for (let i = 0; i < count; i++) {
+                const b = document.createElement('div');
+                b.className = 'bubble';
+                
+                if (imgUrl && Math.random() > 0.3) { 
+                    b.classList.add('is-image');
+                    b.style.backgroundImage = `url('${imgUrl}')`;
+                } else {
+                    b.innerText = textList[i % textList.length].trim();
+                    
+                    if (Math.random() > 0.3) {
+                        b.style.backgroundColor = mainColor;
+                        b.style.backgroundImage = 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 100%)';
+                        b.style.color = '#fff';
+                    } else {
+                        b.style.background = '#e4e6eb';
+                        b.style.color = '#050505'; 
+                    }
+                }
+
+                b.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    createExplosion(e.clientX, e.clientY, mainColor);
+                    b.style.transform = 'scale(1.4)'; b.style.opacity = 0;
+                    setTimeout(()=>b.remove(), 300);
+                });
+
+                const t = (i / count) * Math.PI * 2;
+                let shapePos;
+                if (shapeType === 'heart') shapePos = getHeartPos(t);
+                else if (shapeType === 'circle') shapePos = getCirclePos(t);
+                else shapePos = getSpiralPos(t, i, count);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.max(window.innerWidth, window.innerHeight);
+                
+                b.style.setProperty('--out-x', `${window.innerWidth/2 + Math.cos(angle)*dist}px`);
+                b.style.setProperty('--out-y', `${window.innerHeight/2 + Math.sin(angle)*dist}px`);
+                b.style.setProperty('--chaos-x', `${Math.random()*window.innerWidth}px`);
+                b.style.setProperty('--chaos-y', `${Math.random()*window.innerHeight}px`);
+                b.style.setProperty('--shape-x', `${shapePos.x}px`);
+                b.style.setProperty('--shape-y', `${shapePos.y}px`);
+                b.style.setProperty('--rot', `${(Math.random()-0.5)*90}deg`);
+
+                container.appendChild(b);
+
+                activeTimeouts.push(setTimeout(() => b.classList.add('stage-chaos'), 100));
+                
+                activeTimeouts.push(setTimeout(() => {
+                    b.classList.remove('stage-chaos');
+                    b.style.left = b.style.getPropertyValue('--out-x'); 
+                    b.style.top = b.style.getPropertyValue('--out-y');
+                    b.style.opacity = 0.5;
+                }, 2500));
+
+                activeTimeouts.push(setTimeout(() => {
+                    setTimeout(() => {
+                        b.style.transition = 'all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; 
+                        b.classList.add('stage-shape');
+                    }, i * 15); 
+                }, 4000));
+            }
+
+            activeTimeouts.push(setTimeout(() => {
+                if(shapeType === 'heart') container.classList.add('heartbeating');
+            }, 4000 + (count*15) + 500));
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const bubbles = document.querySelectorAll('.bubble.stage-shape');
+            const radius = 120;
+            bubbles.forEach(b => {
+                const rect = b.getBoundingClientRect();
+                const dist = Math.hypot(e.clientX - (rect.left+rect.width/2), e.clientY - (rect.top+rect.height/2));
+                
+                if (dist < radius) {
+                    const angle = Math.atan2(e.clientY - (rect.top+rect.height/2), e.clientX - (rect.left+rect.width/2));
+                    const force = (radius - dist) / radius;
+                    const tx = Math.cos(angle) * force * -50;
+                    const ty = Math.sin(angle) * force * -50;
+                    b.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(0deg)`;
+                } else {
+                    b.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+                }
+            });
+        });
+
+        // ============================================
+        // PHẦN MỚI THÊM VÀO: SỰ KIỆN PHÍM ENTER
+        // ============================================
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                runAnimation();
+            }
+        });
+
+        btnApply.addEventListener('click', runAnimation);
+        window.onload = runAnimation;
+
+    </script>
+</body>
+</html>
